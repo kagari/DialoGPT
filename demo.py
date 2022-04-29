@@ -54,7 +54,7 @@ else:
 # # from_scratch: True : load model trained from scratch or False: load model trained from fine-tuning the GPT-2
 # target_folder = download_model(model_size='small', dataset='multiref', from_scratch=False)
 # logger.info('Done!\n')
-target_folder = 'japanese-gpt2-medium'
+target_folder = 'rinna/japanese-gpt2-medium'
 
 
 #########################################################################
@@ -103,10 +103,10 @@ args = [
     '--seed', '42',
     '--max_seq_length', '128',
     '--train_batch_size', '512',
-    '--gradient_accumulation_steps', '8',
+    '--gradient_accumulation_steps', '16',
     '--eval_batch_size', '64',
     '--learning_rate', '1e-5',
-    '--num_optim_steps', '500000',
+    '--num_optim_steps', '700000',
     '--valid_step', '1000',
     '--warmup_steps', '4000',
     '--normalize_data', 'true',

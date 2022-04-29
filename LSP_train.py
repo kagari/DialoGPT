@@ -171,7 +171,7 @@ for a in args_dict:
 enc = T5Tokenizer.from_pretrained(args.model_name_or_path)
 enc.do_lower_case = True
 
-config = GPT2Config.from_json_file(args.model_name_or_path)
+config = GPT2Config.from_pretrained(args.model_name_or_path)
 
 if args.local_rank == -1:
     train_dataloader = BucketingDataLoader(args.train_input_file,
