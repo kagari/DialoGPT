@@ -20,7 +20,10 @@ import numpy as np
 from os.path import join
 from torch.distributed import get_rank, get_world_size
 
-from lsp_model import GPT2LMHeadModel, GPT2Tokenizer, GPT2Config, Adam
+from lsp_model import Adam
+from transformers import T5Tokenizer, AutoModelForCausalLM, GPT2Config
+from torch.nn import CrossEntropyLoss
+
 from gpt2_training.train_utils import load_model, boolean_string, set_lr, get_eval_list_same_length
 from gpt2_training.eval_utils import eval_model_loss
 
@@ -165,10 +168,10 @@ for a in args_dict:
 #########################################################################
 # Prepare Data Set
 ##########################################################################
-enc = GPT2Tokenizer.from_pretrained(args.model_name_or_path)
+enc = T5Tokenizer.from_pretrained(args.model_name_or_path)
+enc.do_lower_case = True
 
-config = GPT2Config.from_json_file(
-    join(args.model_name_or_path, 'config.json'))
+config = GPT2Config.from_json_file(args.model_name_or_path)
 
 if args.local_rank == -1:
     train_dataloader = BucketingDataLoader(args.train_input_file,
@@ -191,7 +194,7 @@ eval_dataloader_gen = get_eval_list_same_length(
 #########################################################################
 # Prepare Model and Optimizer
 ##########################################################################
-model = load_model(GPT2LMHeadModel(config), args.init_checkpoint,
+model = load_model(AutoModelForCausalLM.from_config(config), args.init_checkpoint,
                    args, verbose=True)
 if args.local_rank != -1:
     # when from scratch make sure initial models are the same
@@ -266,6 +269,28 @@ if args.local_rank == -1 or get_rank() == 0:
     else:
         pbar = None
 
+def forward_step(model, input_ids, position_ids, token_ids, lm_labels):
+    outputs = model(input_ids=input_ids, position_ids=position_ids,
+                    token_type_ids=token_ids, return_dict=True)
+    lm_logits = outputs["logits"]
+    # loss = F.cross_entropy(
+    #     lm_logits.view(-1, lm_logits.size(-1)),
+    #     label_ids.view(-1),
+    #     ignore_index=tokenizer.pad_token_id,
+    #     reduction="mean"
+    # )
+    # with torch.no_grad():
+    #     ppl = loss.exp()
+    loss_fct1 = CrossEntropyLoss(ignore_index=-1, reduction='none')
+    loss1 = loss_fct1(lm_logits.view(-1, lm_logits.size(-1)),
+                      lm_labels.view(-1))
+    loss1 = loss1.view(lm_labels.size(0), lm_labels.size(1))
+    label_size = torch.sum(lm_labels != -1, dim=1).type(loss1.type())
+    loss = torch.sum(loss1)/torch.sum(label_size)
+    ppl = torch.exp(torch.mean(torch.sum(loss1, dim=1).float()
+                               / label_size.float()))
+    return loss, ppl
+
 while True:
     model.train()
     (tr_loss, tr_ppl, mean_ppl, nb_tr_examples, nb_tr_steps) = 0.0, 0.0, 0.0, 0, 0
@@ -278,7 +303,8 @@ while True:
         input_ids, position_ids, token_ids, label_ids, *_ = batch
         if args.no_token_id:
             token_ids = None
-        loss, ppl = model(input_ids, position_ids, token_ids, label_ids)
+        loss, ppl = forward_step(model, input_ids, position_ids,
+                                 token_ids, label_ids)
 
         if n_gpu > 1:
             loss = loss.mean()

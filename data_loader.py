@@ -170,11 +170,12 @@ def convert_examples_to_features_dynamic(examples, tokenizer,
     """
     def featurize(example):
         conv_id = example.conv_id
-        context_id = tokenizer.encode(example.context)
-        end_of_text_id = tokenizer.encoder[END_OF_TEXT_TOKEN]
+        context_id = tokenizer.encode(example.context)[:-1] # </s>は後で追加するためを消す
+
+        end_of_text_id = tokenizer.eos_token_id
 
         # response is provided in example
-        response_id = tokenizer.encode(example.response)
+        response_id = tokenizer.encode(example.response)[:-1] # </s>は後で追加するためを消す
 
         input_ids_len = len(context_id) + len(response_id) + 2
         if input_ids_len > max_seq_length:

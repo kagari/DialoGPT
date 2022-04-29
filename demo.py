@@ -9,7 +9,7 @@ import sys
 import logging
 from functools import partial
 
-from demo_utils import download_model_folder
+# from demo_utils import download_model_folder
 import argparse
 import subprocess as sp
 
@@ -46,29 +46,30 @@ else:
 #########################################################################
 # Download Model
 #########################################################################
-logger.info('Downloading models...')
-download_model = partial(download_model_folder, DATA_FOLDER=MODEL_FOLDER)
-
-# model size:  could be one of 'small' (GPT2 with 117M), 'medium'(345M) or 'large' (1542M)
-# dataset: one of 'multiref' or 'dstc'
-# from_scratch: True : load model trained from scratch or False: load model trained from fine-tuning the GPT-2
-target_folder = download_model(model_size='small', dataset='multiref', from_scratch=False)
-logger.info('Done!\n')
+# logger.info('Downloading models...')
+# download_model = partial(download_model_folder, DATA_FOLDER=MODEL_FOLDER)
+# 
+# # model size:  could be one of 'small' (GPT2 with 117M), 'medium'(345M) or 'large' (1542M)
+# # dataset: one of 'multiref' or 'dstc'
+# # from_scratch: True : load model trained from scratch or False: load model trained from fine-tuning the GPT-2
+# target_folder = download_model(model_size='small', dataset='multiref', from_scratch=False)
+# logger.info('Done!\n')
+target_folder = 'japanese-gpt2-medium'
 
 
 #########################################################################
 # Prepare Data
 #########################################################################
-logger.info('Downloading and Extracting Data...')
-if dargs.data == 'dummy':
-    cmd = 'bash prepare4db.sh'
-    ret = sp.run(cmd.split(' '), stdout=sp.PIPE, stderr=sp.STDOUT, cwd=DATA_FOLDER)
-elif dargs.data == 'small':
-    myCmd = os.popen('cd reddit_extractor; make -j 8; cd ..').read()
-elif dargs.data == 'full':
-    myCmd = os.popen('cd reddit_extractor; SIZE=full make -j 8; cd ..').read()
-else:
-    raise ValueError('you need to implement your own data type, or use either dummy, small, or full')
+# logger.info('Downloading and Extracting Data...')
+# if dargs.data == 'dummy':
+#     cmd = 'bash prepare4db.sh'
+#     ret = sp.run(cmd.split(' '), stdout=sp.PIPE, stderr=sp.STDOUT, cwd=DATA_FOLDER)
+# elif dargs.data == 'small':
+#     myCmd = os.popen('cd reddit_extractor; make -j 8; cd ..').read()
+# elif dargs.data == 'full':
+#     myCmd = os.popen('cd reddit_extractor; SIZE=full make -j 8; cd ..').read()
+# else:
+#     raise ValueError('you need to implement your own data type, or use either dummy, small, or full')
 
 logger.info('Preparing Data...')
 data_path = os.path.join(DATA_FOLDER, 'train.tsv')
@@ -95,9 +96,9 @@ logger.info('###################################################################
 train_cmd = 'LSP_train.py'
 args = [
     '--model_name_or_path', target_folder,
-    '--init_checkpoint', os.path.join(target_folder, 'pytorch_model.bin'),
+    # '--init_checkpoint', os.path.join(target_folder, 'pytorch_model.bin'),
     '--train_input_file', data_db ,  # file from last step
-    '--eval_input_file', './data/dummy_data.tsv',   # dummy test data
+    '--eval_input_file', './data/eval.tsv',
     '--output_dir', os.path.join(MODEL_FOLDER, 'output_model'),
     '--seed', '42',
     '--max_seq_length', '128',
@@ -105,11 +106,11 @@ args = [
     '--gradient_accumulation_steps', '8',
     '--eval_batch_size', '64',
     '--learning_rate', '1e-5',
-    '--num_optim_steps', '10000',
-    '--valid_step', '5000',
+    '--num_optim_steps', '500000',
+    '--valid_step', '1000',
     '--warmup_steps', '4000',
     '--normalize_data', 'true',
-    '--fp16', 'true',
+    '--fp16', 'false',
     '--lr_schedule', 'noam',
     '--loss_scale', '0.0',
     '--no_token_id', 'true',

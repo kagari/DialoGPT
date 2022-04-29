@@ -134,10 +134,10 @@ def get_eval_list_same_length(input_file, tokenizer, max_batch_size,
 
     def featurize(example):
         conv_id = example.conv_id
-        context_id = tokenizer.encode(example.context)
-        end_of_text_id = tokenizer.encoder[END_OF_TEXT_TOKEN]
+        context_id = tokenizer.encode(example.context)[:-1]
+        end_of_text_id = tokenizer.eos_token_id
 
-        response_id = tokenizer.encode(example.response)
+        response_id = tokenizer.encode(example.response)[:-1]
         input_ids = context_id + [end_of_text_id]
         lm_labels = response_id
 
